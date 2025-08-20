@@ -1,0 +1,79 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch
+        run: git fetch origin ${{ github.event.pull_request.base.ref }}
+
+      - name: Find changed source files
+        id: changed-files
+        run: |
+          FILES=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }} ${{ github.sha }} | grep -E '\.(py|js|ts|java|cpp|c|go|rs|php|rb)$' || true)
+
+          # echo "Found files:"
+          # echo "$FILES"
+
+          FILES_JSON=$(echo "$FILES" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "files=$FILES_JSON" >> $GITHUB_OUTPUT
+
+      - name: Review changed files with AI
+        if: ${{ steps.changed-files.outputs.files != '[]' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          for file in $(echo '${{ steps.changed-files.outputs.files }}' | jq -r '.[]'); do
+            # echo "Reviewing: $file"
+            CODE_CONTENT=$(jq -Rs . < "$file")
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+
+            echo $CODE_CONTENT
+            echo $PR_NUMBER
+
+            RESPONSE=$(curl -s -X POST http://52.66.237.130/review \
+              -H "Content-Type: application/json" \
+              -d "{\"code\": $CODE_CONTENT, \"file_path\": \"$file\", \"pr_number\": \"$PR_NUMBER\"}")
+
+            echo "$RESPONSE"
+
+            if ! echo "$RESPONSE" | jq empty >/dev/null 2>&1; then
+              # echo "Invalid JSON from API, skipping file."
+              continue
+            fi
+
+            OVERALL_SCORE=$(echo "$RESPONSE" | jq -r '.overall_score // "N/A"')
+            STATUS=$(echo "$RESPONSE" | jq -r '.status // "N/A"')
+            TOTAL_ISSUES=$(echo "$RESPONSE" | jq -r '.total_issues // "0"')
+            ISSUES_BLOCK=$(echo "$RESPONSE" | jq '.issues // []')
+            POSITIVE_POINTS_BLOCK=$(echo "$RESPONSE" | jq '.positive_points // []')
+
+            REVIEW_COMMENT="**File:** $file"$'\n'
+            REVIEW_COMMENT+="Overall Score : $OVERALL_SCORE"$'\n'
+            REVIEW_COMMENT+="Status : $STATUS"$'\n'
+            REVIEW_COMMENT+="Total issues : $TOTAL_ISSUES"$'\n'
+            REVIEW_COMMENT+="Issues :"$'\n'
+            REVIEW_COMMENT+="$ISSUES_BLOCK"$'\n'
+            REVIEW_COMMENT+="Positive points :"$'\n'
+            REVIEW_COMMENT+="$POSITIVE_POINTS_BLOCK"
+
+            gh api repos/${{ github.repository }}/issues/$PR_NUMBER/comments \
+              -f body="$REVIEW_COMMENT" || true
+          done

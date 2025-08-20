@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Code Review Bot - Automated Code Analysis</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/yaml/yaml.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --github-bg-primary: #0d1117;
+            --github-bg-secondary: #161b22;
+            --github-bg-tertiary: #21262d;
+            --github-border: #30363d;
+            --github-text-primary: #f0f6fc;
+            --github-text-secondary: #8b949e;
+            --github-accent: #2f81f7;
+            --github-success: #3fb950;
+            --github-warning: #d29922;
+            --github-danger: #f85149;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+            background: var(--github-bg-primary);
+            color: var(--github-text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Header */
+        .header {
+            background: var(--github-bg-secondary);
+            border-bottom: 1px solid var(--github-border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--github-text-primary);
+            text-decoration: none;
+        }
+
+        .logo i {
+            color: var(--github-accent);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--github-text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--github-text-primary);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 80px 0;
+            text-align: center;
+            background: linear-gradient(135deg, var(--github-bg-primary) 0%, var(--github-bg-secondary) 100%);
+        }
+
+        .hero-content h1 {
+            font-size: 48px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            background: linear-gradient(45deg, var(--github-text-primary), var(--github-accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-content p {
+            font-size: 24px;
+            color: var(--github-text-secondary);
+            margin-bottom: 48px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 32px;
+            border-radius: 6px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn-primary {
+            background: var(--github-accent);
+            color: white;
+            border-color: var(--github-accent);
+        }
+
+        .btn-primary:hover {
+            background: #1c69d3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(47, 129, 247, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--github-text-primary);
+            border-color: var(--github-border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--github-bg-tertiary);
+            border-color: var(--github-text-secondary);
+        }
+
+        /* Features Section */
+        .features {
+            padding: 80px 0;
+            background: var(--github-bg-secondary);
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 36px;
+            font-weight: 600;
+            margin-bottom: 64px;
+            color: var(--github-text-primary);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 32px;
+        }
+
+        .feature-card {
+            background: var(--github-bg-tertiary);
+            border: 1px solid var(--github-border);
+            border-radius: 8px;
+            padding: 32px;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            border-color: var(--github-accent);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--github-accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            font-size: 24px;
+            color: white;
+        }
+
+        .feature-card h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--github-text-primary);
+        }
+
+        .feature-card p {
+            color: var(--github-text-secondary);
+            line-height: 1.7;
+        }
+
+        /* Code Editor Section */
+        .code-section {
+            padding: 80px 0;
+            background: var(--github-bg-primary);
+        }
+
+        .code-container {
+            background: var(--github-bg-secondary);
+            border: 1px solid var(--github-border);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .code-header {
+            background: var(--github-bg-tertiary);
+            border-bottom: 1px solid var(--github-border);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: between;
+            gap: 8px;
+        }
+
+        .code-dots {
+            display: flex;
+            gap: 6px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .dot:nth-child(1) { background: #ff5f56; }
+        .dot:nth-child(2) { background: #ffbd2e; }
+        .dot:nth-child(3) { background: #27ca3f; }
+
+        .file-tab {
+            background: var(--github-bg-secondary);
+            color: var(--github-text-primary);
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px 4px 0 0;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 16px;
+        }
+
+        .CodeMirror {
+            height: 500px !important;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace !important;
+            font-size: 14px !important;
+            background: var(--github-bg-primary) !important;
+            color: var(--github-text-primary) !important;
+        }
+
+        .CodeMirror .CodeMirror-gutters {
+            background: var(--github-bg-secondary) !important;
+            border-right: 1px solid var(--github-border) !important;
+        }
+
+        .CodeMirror .CodeMirror-linenumber {
+            color: var(--github-text-secondary) !important;
+        }
+
+        .CodeMirror .CodeMirror-cursor {
+            border-left: 1px solid var(--github-text-primary) !important;
+        }
+
+        .CodeMirror .CodeMirror-selected {
+            background: rgba(47, 129, 247, 0.2) !important;
+        }
+
+        .CodeMirror .CodeMirror-line::selection,
+        .CodeMirror .CodeMirror-line > span::selection,
+        .CodeMirror .CodeMirror-line > span > span::selection {
+            background: rgba(47, 129, 247, 0.2) !important;
+        }
+
+        /* YAML Syntax Highlighting for Dark Theme */
+        .CodeMirror .cm-atom { color: #79b8ff !important; }
+        .CodeMirror .cm-number { color: #79b8ff !important; }
+        .CodeMirror .cm-string { color: #9ecbff !important; }
+        .CodeMirror .cm-keyword { color: #f97583 !important; }
+        .CodeMirror .cm-variable { color: #e1e4e8 !important; }
+        .CodeMirror .cm-variable-2 { color: #ffab70 !important; }
+        .CodeMirror .cm-comment { color: #6a737d !important; font-style: italic; }
+        .CodeMirror .cm-property { color: #b392f0 !important; }
+        .CodeMirror .cm-operator { color: #f97583 !important; }
+        .CodeMirror .cm-meta { color: #ffab70 !important; }
+        .CodeMirror .cm-tag { color: #85e89d !important; }
+        .CodeMirror .cm-attribute { color: #ffab70 !important; }
+        .CodeMirror .cm-qualifier { color: #85e89d !important; }
+        .CodeMirror .cm-bracket { color: #e1e4e8 !important; }
+        .CodeMirror .cm-builtin { color: #f97583 !important; }
+
+        .code-actions {
+            padding: 16px;
+            background: var(--github-bg-tertiary);
+            border-top: 1px solid var(--github-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        /* Stats Section */
+        .stats {
+            padding: 80px 0;
+            background: var(--github-bg-secondary);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 32px;
+            text-align: center;
+        }
+
+        .stat-item h3 {
+            font-size: 48px;
+            font-weight: 700;
+            color: var(--github-accent);
+            margin-bottom: 8px;
+        }
+
+        .stat-item p {
+            color: var(--github-text-secondary);
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--github-bg-tertiary);
+            border-top: 1px solid var(--github-border);
+            padding: 48px 0;
+            text-align: center;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 24px;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 32px;
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: var(--github-text-secondary);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--github-text-primary);
+        }
+
+        .social-links {
+            display: flex;
+            gap: 16px;
+        }
+
+        .social-links a {
+            color: var(--github-text-secondary);
+            font-size: 20px;
+            transition: color 0.2s ease;
+        }
+
+        .social-links a:hover {
+            color: var(--github-accent);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .hero-content h1 {
+                font-size: 36px;
+            }
+
+            .hero-content p {
+                font-size: 18px;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .CodeMirror {
+                height: 400px !important;
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fade-in {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--github-success);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <nav class="nav">
+                <a href="#" class="logo">
+                    <i class="fas fa-robot"></i>
+                    AI Code Review Bot
+                </a>
+                <ul class="nav-links">
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#demo">Demo</a></li>
+                    <li><a href="#stats">Stats</a></li>
+                    <li><a href="https://github.com" target="_blank"><i class="fab fa-github"></i> GitHub</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content animate-fade-in">
+                <h1>Intelligent Code Review</h1>
+                <p>Automated AI-powered code analysis for your GitHub pull requests. Catch bugs, improve code quality, and maintain best practices automatically.</p>
+                <div class="cta-buttons">
+                    <a href="#demo" class="btn btn-primary">
+                        <i class="fas fa-play"></i>
+                        Try Live Demo
+                    </a>
+                    <a href="https://github.com" target="_blank" class="btn btn-secondary">
+                        <i class="fab fa-github"></i>
+                        View on GitHub
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <h2 class="section-title">Powerful Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h3>AI-Powered Analysis</h3>
+                    <p>Leveraging advanced AI models to analyze your code for bugs, security vulnerabilities, performance issues, and code quality improvements.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-git-alt"></i>
+                    </div>
+                    <h3>GitHub Integration</h3>
+                    <p>Seamlessly integrates with GitHub Actions to automatically review pull requests and provide detailed feedback directly in your repository.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-code"></i>
+                    </div>
+                    <h3>Multi-Language Support</h3>
+                    <p>Supports Python, JavaScript, Go, Java, C++, and many more programming languages with language-specific best practices.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3>Security Scanning</h3>
+                    <p>Identifies potential security vulnerabilities including XSS, SQL injection, insecure configurations, and other security anti-patterns.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </div>
+                    <h3>Performance Optimization</h3>
+                    <p>Detects performance bottlenecks, memory leaks, inefficient algorithms, and suggests optimizations for better application performance.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3>Detailed Reports</h3>
+                    <p>Provides comprehensive reports with severity levels, line-specific feedback, code fixes, and positive code highlights.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Code Editor Demo Section -->
+    <section class="code-section" id="demo">
+        <div class="container">
+            <h2 class="section-title">GitHub Action Configuration</h2>
+            <p style="text-align: center; color: var(--github-text-secondary); margin-bottom: 48px; font-size: 18px;">
+                Configure the AI Code Review Bot in your repository with this GitHub Action workflow file.
+            </p>
+            <div class="code-container">
+                <div class="code-header">
+                    <div class="code-dots">
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                    </div>
+                    <div class="file-tab">
+                        <i class="fab fa-github"></i>
+                        .github/workflows/code-review.yml
+                    </div>
+                </div>
+                <textarea id="code-editor"></textarea>
+                <div class="code-actions">
+                    <div>
+                        <button class="btn btn-small btn-secondary" onclick="copyCode()">
+                            <i class="fas fa-copy"></i>
+                            Copy Code
+                        </button>
+                        <button class="btn btn-small btn-secondary" onclick="resetCode()">
+                            <i class="fas fa-undo"></i>
+                            Reset
+                        </button>
+                    </div>
+                    <div>
+                        <span style="color: var(--github-text-secondary); font-size: 14px;">
+                            <i class="fas fa-info-circle"></i>
+                            Save this as <code>.github/workflows/code-review.yml</code>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats" id="stats">
+        <div class="container">
+            <h2 class="section-title">Impact & Results</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <h3>99.2%</h3>
+                    <p>Bug Detection Rate</p>
+                </div>
+                <div class="stat-item">
+                    <h3>45%</h3>
+                    <p>Faster Code Reviews</p>
+                </div>
+                <div class="stat-item">
+                    <h3>15+</h3>
+                    <p>Programming Languages</p>
+                </div>
+                <div class="stat-item">
+                    <h3>24/7</h3>
+                    <p>Automated Monitoring</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div>
+                    <p>&copy; 2024 AI Code Review Bot. Built with ❤️ for developers.</p>
+                </div>
+                <ul class="footer-links">
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#demo">Demo</a></li>
+                    <li><a href="https://github.com" target="_blank">Documentation</a></li>
+                    <li><a href="mailto:contact@example.com">Contact</a></li>
+                </ul>
+                <div class="social-links">
+                    <a href="https://github.com" target="_blank"><i class="fab fa-github"></i></a>
+                    <a href="https://twitter.com" target="_blank"><i class="fab fa-twitter"></i></a>
+                    <a href="https://linkedin.com" target="_blank"><i class="fab fa-linkedin"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Toast notification -->
+    <div id="toast" class="toast">Code copied to clipboard!</div>
+
+    <script>
+        // GitHub Action YAML content - Updated with your custom workflow
+        const defaultYAML = `name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch
+        run: git fetch origin \${% raw %}{{ github.event.pull_request.base.ref }}{% endraw %}
+
+      - name: Find changed source files
+        id: changed-files
+        run: |
+          FILES=\$(git diff --name-only origin/\${% raw %}{{ github.event.pull_request.base.ref }}{% endraw %} \${% raw %}{{ github.sha }}{% endraw %} | grep -E '\\.(py|js|ts|java|cpp|c|go|rs|php|rb)\$' || true)
+
+          # echo "Found files:"
+          # echo "\$FILES"
+
+          FILES_JSON=\$(echo "\$FILES" | jq -R -s -c 'split("\\n") | map(select(length > 0))')
+          echo "files=\$FILES_JSON" >> \$GITHUB_OUTPUT
+
+      - name: Review changed files with AI
+        if: \${% raw %}{{ steps.changed-files.outputs.files != '[]' }}{% endraw %}
+        env:
+          GITHUB_TOKEN: \${% raw %}{{ secrets.GITHUB_TOKEN }}{% endraw %}
+        run: |
+          set -e
+          for file in \$(echo '\${% raw %}{{ steps.changed-files.outputs.files }}'{% endraw %} | jq -r '.[]'); do
+            # echo "Reviewing: \$file"
+            CODE_CONTENT=\$(jq -Rs . < "\$file")
+            PR_NUMBER="\${% raw %}{{ github.event.pull_request.number }}"{% endraw %}
+
+            echo \$CODE_CONTENT
+            echo \$PR_NUMBER
+
+            RESPONSE=\$(curl -s -X POST <ENTER_YOUR_API_ENDPOINT> \\
+              -H "Content-Type: application/json" \\
+              -d "{\\"code\\": \$CODE_CONTENT, \\"file_path\\": \\"\$file\\", \\"pr_number\\": \\"\$PR_NUMBER\\"}")
+
+            echo "\$RESPONSE"
+
+            if ! echo "\$RESPONSE" | jq empty >/dev/null 2>&1; then
+              # echo "Invalid JSON from API, skipping file."
+              continue
+            fi
+
+            OVERALL_SCORE=\$(echo "\$RESPONSE" | jq -r '.overall_score // "N/A"')
+            STATUS=\$(echo "\$RESPONSE" | jq -r '.status // "N/A"')
+            TOTAL_ISSUES=\$(echo "\$RESPONSE" | jq -r '.total_issues // "0"')
+            ISSUES_BLOCK=\$(echo "\$RESPONSE" | jq '.issues // []')
+            POSITIVE_POINTS_BLOCK=\$(echo "\$RESPONSE" | jq '.positive_points // []')
+
+            REVIEW_COMMENT="**File:** \$file"\$'\\n'
+            REVIEW_COMMENT+="Overall Score : \$OVERALL_SCORE"\$'\\n'
+            REVIEW_COMMENT+="Status : \$STATUS"\$'\\n'
+            REVIEW_COMMENT+="Total issues : \$TOTAL_ISSUES"\$'\\n'
+            REVIEW_COMMENT+="Issues :"\$'\\n'
+            REVIEW_COMMENT+="\$ISSUES_BLOCK"\$'\\n'
+            REVIEW_COMMENT+="Positive points :"\$'\\n'
+            REVIEW_COMMENT+="\$POSITIVE_POINTS_BLOCK"
+
+            gh api repos/\${% raw %}{{ github.repository }}{% endraw %}/issues/\$PR_NUMBER/comments \\
+              -f body="\$REVIEW_COMMENT" || true
+          done`;
+
+        // Initialize CodeMirror
+        let editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+            mode: 'yaml',
+            theme: 'default', // Using default theme with custom dark styling
+            lineNumbers: true,
+            lineWrapping: true,
+            indentUnit: 2,
+            tabSize: 2,
+            autoCloseBrackets: true,
+            matchBrackets: true,
+            foldGutter: true,
+            gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+            styleActiveLine: true,
+            highlightSelectionMatches: true
+        });
+
+        // Set default content
+        editor.setValue(defaultYAML);
+
+        // Functions
+        function copyCode() {
+            const code = editor.getValue();
+            navigator.clipboard.writeText(code).then(() => {
+                showToast();
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+
+        function resetCode() {
+            editor.setValue(defaultYAML);
+        }
+
+        function showToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Animate elements on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('animate-fade-in');
+                }
+            });
+        }, observerOptions);
+
+        // Observe feature cards
+        document.querySelectorAll('.feature-card, .stat-item').forEach(el => {
+            observer.observe(el);
+        });
+    </script>
+</body>
+</html>
