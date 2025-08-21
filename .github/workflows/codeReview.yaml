@@ -48,7 +48,7 @@ jobs:
             echo $CODE_CONTENT
             echo $PR_NUMBER
 
-            RESPONSE=$(curl -s -X POST http://52.66.237.130/review \
+            RESPONSE=$(curl -s -X POST http://3.110.204.129:8080/review \
               -H "Content-Type: application/json" \
               -d "{\"code\": $CODE_CONTENT, \"file_path\": \"$file\", \"pr_number\": \"$PR_NUMBER\"}")
 
