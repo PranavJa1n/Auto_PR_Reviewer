@@ -483,7 +483,7 @@
                     <li><a href="#features">Features</a></li>
                     <li><a href="#demo">Demo</a></li>
                     <li><a href="#stats">Stats</a></li>
-                    <li><a href="https://github.com" target="_blank"><i class="fab fa-github"></i> GitHub</a></li>
+                    <li><a href="https://github.com/PranavJa1n/Auto_PR_Reviewer" target="_blank"><i class="fab fa-github"></i> GitHub</a></li>
                 </ul>
             </nav>
         </div>
@@ -500,7 +500,7 @@
                         <i class="fas fa-play"></i>
                         Try Live Demo
                     </a>
-                    <a href="https://github.com" target="_blank" class="btn btn-secondary">
+                    <a href="https://github.com/PranavJa1n/Auto_PR_Reviewer" target="_blank" class="btn btn-secondary">
                         <i class="fab fa-github"></i>
                         View on GitHub
                     </a>
@@ -576,7 +576,7 @@
                     </div>
                     <div class="file-tab">
                         <i class="fab fa-github"></i>
-                        .github/workflows/code-review.yml
+                        .github/workflows/code-review.yaml
                     </div>
                 </div>
                 <textarea id="code-editor"></textarea>
@@ -616,7 +616,7 @@
                     <p>Faster Code Reviews</p>
                 </div>
                 <div class="stat-item">
-                    <h3>15+</h3>
+                    <h3>20+</h3>
                     <p>Programming Languages</p>
                 </div>
                 <div class="stat-item">
@@ -632,19 +632,19 @@
         <div class="container">
             <div class="footer-content">
                 <div>
-                    <p>&copy; 2024 AI Code Review Bot. Built with ❤️ for developers.</p>
+                    <p>&copy; 2025 AI Code Review Bot.</p>
                 </div>
                 <ul class="footer-links">
                     <li><a href="#features">Features</a></li>
                     <li><a href="#demo">Demo</a></li>
-                    <li><a href="https://github.com" target="_blank">Documentation</a></li>
-                    <li><a href="mailto:contact@example.com">Contact</a></li>
+                    <li><a href="https://github.com/PranavJa1n/Auto_PR_Reviewer/blob/main/README.mdr" target="_blank">Documentation</a></li>
+                    <!-- <li><a href="mailto:contact@example.com">Contact</a></li> -->
                 </ul>
-                <div class="social-links">
-                    <a href="https://github.com" target="_blank"><i class="fab fa-github"></i></a>
+                <!-- <div class="social-links">
+                    <a href="https://github.com/PranavJa1n/Auto_PR_Reviewer" target="_blank"><i class="fab fa-github"></i></a>
                     <a href="https://twitter.com" target="_blank"><i class="fab fa-twitter"></i></a>
                     <a href="https://linkedin.com" target="_blank"><i class="fab fa-linkedin"></i></a>
-                </div>
+                </div> -->
             </div>
         </div>
     </footer>
@@ -682,7 +682,7 @@ jobs:
       - name: Find changed source files
         id: changed-files
         run: |
-          FILES=\$(git diff --name-only origin/\${% raw %}{{ github.event.pull_request.base.ref }}{% endraw %} \${% raw %}{{ github.sha }}{% endraw %} | grep -E '\\.(py|js|ts|java|cpp|c|go|rs|php|rb)\$' || true)
+          FILES=\$(git diff --name-only origin/\${% raw %}{{ github.event.pull_request.base.ref }}{% endraw %} \${% raw %}{{ github.sha }}{% endraw %} | grep -E '\\.(ex|groovy|bf|clj|py|js|ts|java|cpp|c|cs|sql|r|bash|go|rs|php|rb|swift|pl|vb|dart|scala|bhai)\$' || true)
 
           # echo "Found files:"
           # echo "\$FILES"

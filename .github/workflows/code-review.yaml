@@ -26,7 +26,7 @@ jobs:
       - name: Find changed source files
         id: changed-files
         run: |
-          FILES=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }} ${{ github.sha }} | grep -E '\.(py|js|ts|java|cpp|c|cs|sql|r|bash|go|rs|php|rb|swift|pl|vb|dart|scala|bhai)$' || true)
+          FILES=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }} ${{ github.sha }} | grep -E '\.(py|js|ts|cpp|c|cs|sql|r|bash|go|rs|php|rb|swift|pl|vb|dart|scala|bhai|ex|groovy|bf|clj|java)$' || true)
 
           # echo "Found files:"
           # echo "$FILES"
@@ -48,7 +48,7 @@ jobs:
             echo $CODE_CONTENT
             echo $PR_NUMBER
 
-            RESPONSE=$(curl -s -X POST http://3.110.204.129:8080/review \
+            RESPONSE=$(curl -s -X POST http://https://auto-pr-reviewer.onrender.com/review \
               -H "Content-Type: application/json" \
               -d "{\"code\": $CODE_CONTENT, \"file_path\": \"$file\", \"pr_number\": \"$PR_NUMBER\"}")
 

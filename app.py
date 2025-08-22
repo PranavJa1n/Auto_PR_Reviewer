@@ -168,7 +168,7 @@ def home():
 
 
 if __name__ == "__main__":
-    if not os.getenv("gemini_api"):
-        print("Warning: gemini_api environment variable not found")
+    if not os.getenv("perplexity_api"):
+        print("Warning: perplexity_api environment variable not found")
     
     app.run(host='0.0.0.0', port=8080)
