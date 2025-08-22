@@ -2,177 +2,77 @@ import os
 import json
 from flask import Flask, request, jsonify, render_template
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
-import time
-
+from openai import OpenAI
 load_dotenv()
 
 app = Flask(__name__)
-
-def generate_review(code_content, max_retries=3, delay=2):
-    """Generate AI review for the provided code content with retry logic"""
-    
-    for attempt in range(max_retries):
-        try:
-            client = genai.Client(
-                api_key=os.getenv("gemini_api"),
-            )
-
-            model = "gemini-2.5-pro"
-            contents = [
-                types.Content(
-                    role="user",
-                    parts=[
-                    types.Part.from_text(text="""You are a senior code reviewer. IMPORTANT: Respond ONLY with valid JSON.
+def generate_review(code_content):
+    client = OpenAI(api_key=os.getenv("perplexity_api"), base_url="https://api.perplexity.ai")
+    response = client.chat.completions.create(
+        model="sonar-pro",
+        temperature=0.1,
+        messages=[
+            {
+                "role" : "user",
+                "content" : """You are a senior code reviewer. IMPORTANT: Respond ONLY with valid JSON.
 
 Analyze this code and respond with this EXACT JSON structure:
 {
-  status: ,
-  overall_score: 0,
-  total_issues: 0,
-  issues: [
-    {
-      line_number: 0,
-      severity: ,
-      category: ,
-      title: ,
-      description: ,
-      suggestion: ,
-      code_fix: 
-    }
-  ],
-  positive_points: [
-    
-  ]
+    status: ,
+    overall_score: 0,
+    total_issues: 0,
+    issues: [
+        {
+            line_number: 0,
+            severity: ,
+            category: ,
+            title: ,
+            description: ,
+            suggestion: ,
+            code_fix: 
+        }
+    ],
+    positive_points: [
+    ]
 }
 
 Remember to give a score out of 10 not 100
-"""),
-            ],
-        ),
-        types.Content(
-            role="model",
-            parts=[
-                types.Part.from_text(text="""**Assessing the Request**
-
-Okay, so I now understand the user wants me to be a senior code reviewer, but needs to first provide the code. I am waiting for the code. Once it arrives, I plan to analyze it across multiple categories like performance, security, and readability.
-
-
-**Planning the Review Process**
-
-I've solidified my plan to perform a code review. The user's prompt outlines my role and the desired output. I'm waiting for the code now. Upon receipt, I'll dive into analysis, categorizing issues by severity and crafting detailed feedback with actionable suggestions. I'll also highlight any positive aspects before compiling the JSON response.
-
-
-**Revising Response Strategy**
-
-I've carefully re-read the instructions and identified a potential contradiction: the demand for *only* JSON while lacking the required input code. My options are to return empty JSON, violate the JSON-only rule by requesting code, or generate a JSON with an error message. I'm leaning toward the third option – a JSON structure populated with an error status – to satisfy both the format constraint and the need for communication. This seems the most robust approach to address the current situation. I'm now drafting a preliminary JSON structure that reflects this approach.
-
-
-**Crafting a Response**
-
-I'm now generating a valid JSON response. It will communicate the necessity of the code for the code review. The format will adhere to user instructions, including an error state with an appropriate explanation. My aim is to be both helpful and compliant. I'm focusing on providing the user with an actionable message. The structure includes an error issue, indicating a requirement for code input.
-
-
-**Addressing the Code Deficiency**
-
-I've crafted a strategy to address the absence of code. My primary objective is to generate the requested JSON response. Given the \"JSON only\" constraint, I've decided to create an error state JSON response. This response acknowledges the missing code, communicates the issue, and provides a clear suggestion to the user. I've designed the JSON structure, which will include an error status, a \"critical\" issue detailing the situation, and guidance for proceeding. I believe this balanced response satisfies both the format requirement and the interactional necessity. The current structure is ready.
-
-
-**Addressing the Input Deficiency**
-
-I've decided to respond with the error JSON. My current plan is to generate a JSON response indicating the missing code. I will include a detailed explanation and suggestion within the JSON structure. This structured approach directly addresses the user's initial request while acknowledging the necessary input. The finalized JSON structure will contain an \"error\" status, a critical issue specifying the issue, and guidance to the user, balancing compliance and effective interaction. The response is ready to be delivered.
-
-
-**Preparing the Error Response**
-
-I'm now fully committed to the error JSON approach. It's the most compliant and informative solution. I've finalized the structure, including the error status, a descriptive issue, and a clear suggestion for the user. I'm ready to craft the precise JSON response.
-
-
-"""),
-                types.Part.from_text(text="""```json
+"""
+            },
+            {
+                "role":"assistant",
+                "content" : """
 {
-  \"status\": \"AWAITING_CODE\",
-  \"overall_score\": \"0\",
-  \"total_issues\": 1,
-  \"issues\": [
+  "status": "error",
+  "overall_score": 0,
+  "total_issues": 1,
+  "issues": [
     {
-      \"line_number\": 0,
-      \"severity\": \"Info\",
-      \"category\": \"Input\",
-      \"title\": \"No Code Provided for Review\",
-      \"description\": \"You have instructed me to analyze code, but no code was provided in the prompt. Please provide the code you would like me to review.\",
-      \"suggestion\": \"Please provide the code snippet in your next message so I can perform the analysis and generate the requested JSON response.\",
-      \"code_fix\": \"\"
+      "line_number": 0,
+      "severity": "critical",
+      "category": "missing_code",
+      "title": "No code provided for review",
+      "description": "You did not submit any code to review. Please provide the source code you would like analyzed.",
+      "suggestion": "Paste your code snippet or program so that a comprehensive review can be performed.",
+      "code_fix": null
     }
   ],
-  \"positive_points\": []
-}```"""),
-                    ],
-                ),
-                types.Content(
-                    role="user",
-                    parts=[
-                        types.Part.from_text(text=code_content),
-                    ],
-                ),
-            ]
-            
-            tools = [
-                types.Tool(googleSearch=types.GoogleSearch()),
-            ]
-            
-            generate_content_config = types.GenerateContentConfig(
-                temperature=0,
-                thinking_config=types.ThinkingConfig(
-                    thinking_budget=-1,
-                ),
-                tools=tools,
-            )
-
-            # Collect the full response
-            response_text = ""
-            for chunk in client.models.generate_content_stream(
-                model=model,
-                contents=contents,
-                config=generate_content_config,
-            ):
-                response_text += chunk.text
-
-            # If we get here, the API call was successful
-            app.logger.info(f"API call successful on attempt {attempt + 1}")
-            return response_text
-
-        except Exception as e:
-            app.logger.warning(f"Attempt {attempt + 1} failed: {str(e)}")
-            
-            if attempt == max_retries - 1:  # Last attempt
-                app.logger.error(f"All {max_retries} attempts failed. Last error: {str(e)}")
-                return json.dumps({
-                    "status": f"Error after {max_retries} attempts: {str(e)}",
-                    "overall_score": 0,
-                    "total_issues": 0,
-                    "issues": [],
-                    "positive_points": []
-                })
-            
-            # Wait before retrying (exponential backoff)
-            wait_time = delay * (2 ** attempt)
-            app.logger.info(f"Waiting {wait_time} seconds before retry...")
-            time.sleep(wait_time)
-    
-    # This should never be reached, but just in case
-    return json.dumps({
-        "status": "Unexpected error in retry logic",
-        "overall_score": 0,
-        "total_issues": 0,
-        "issues": [],
-        "positive_points": []
-    })
+  "positive_points": [
+  
+  ]
+}"""
+            },
+            {
+                "role" : "user",
+                "content" : code_content
+            }
+        ],
+        max_tokens= 4000
+    )
+    return response.choices[0].message.content
 
 
-
-def extract_json_from_response(response_text):
+def extract_json_from_response(response_text, data):
     """Extract JSON from the response text, handling markdown code blocks"""
     try:
         # Try to parse as direct JSON first
@@ -197,6 +97,7 @@ def extract_json_from_response(response_text):
         
         # If all fails, return error response
         return {
+            "data":data,
             "status": "Failed to parse AI response as JSON",
             "overall_score": 0,
             "total_issues": 0,
@@ -209,7 +110,7 @@ def review_code():
     """Main endpoint for code review"""
     try:
         data = request.get_json()
-        print(data)
+        print(data,"\n------------------------------------------")
         
         if not data:
             return jsonify({
@@ -232,14 +133,14 @@ def review_code():
         app.logger.info(f"Reviewing file: {file_path} for PR: {pr_number}")
 
         # Generate review using AI
-        raw_response = generate_review(code_content)
-        print(raw_response)
+        raw_response = generate_review(f"File Path : {file_path}\nCode:\n{code_content}")
+        # print(code_content)
         app.logger.info(f"Raw AI response: {raw_response}")
         
-        print(raw_response) # checking if ther is a problem in raw_response
+        print(f"{raw_response}\n\n{type(raw_response)}") # checking if ther is a problem in raw_response
 
         # Extract JSON from response
-        review_data = extract_json_from_response(raw_response)
+        review_data = extract_json_from_response(raw_response, data)
         
         # Ensure all required fields exist
         review_data.setdefault('status', 'Review completed')
